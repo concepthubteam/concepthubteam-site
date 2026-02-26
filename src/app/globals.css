@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: dark; }
+html, body { height: 100%; }
+
+body {
+  background: radial-gradient(1200px 600px at 20% 10%, rgba(225,29,72,0.10), transparent 55%),
+              radial-gradient(900px 500px at 80% 0%, rgba(255,255,255,0.06), transparent 60%),
+              linear-gradient(180deg, #07070A 0%, #0B0C10 55%, #07070A 100%);
+  color: rgba(255,255,255,0.92);
+}
+
+a { color: inherit; text-decoration: none; }
+
+.bg-grid {
+  background-image:
+    linear-gradient(to right, rgba(255,255,255,0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-float { animation: none !important; }
+}
