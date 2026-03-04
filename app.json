@@ -1,0 +1,57 @@
+{
+  "expo": {
+    "name": "GOZI",
+    "slug": "gozi",
+    "scheme": "gozi",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FF6B00"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.gozi.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0D0D0D"
+      },
+      "package": "com.gozi.app",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "GOZI folosește locația ta pentru a găsi evenimente aproape de tine."
+        }
+      ],
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#FF7334",
+          "sounds": []
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "e53317e2-26ee-4374-a40b-f9ef1db98c7c"
+      }
+    },
+    "owner": "gozi_bucuresti"
+  }
+}

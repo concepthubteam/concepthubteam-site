@@ -1,0 +1,31 @@
+# GOZI scraper + pipeline dependencies
+# Install with: pip install -r scrapers/requirements.txt
+
+# ── HTTP & HTML ────────────────────────────────────────────────────────────────
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+lxml>=5.0.0
+
+# ── Supabase Python client ─────────────────────────────────────────────────────
+supabase>=2.0.0
+
+# ── PostgreSQL direct connection (for run_sql.py schema runner) ───────────────
+psycopg2-binary>=2.9.9
+
+# ── Env + config ──────────────────────────────────────────────────────────────
+python-dotenv>=1.0.0
+
+# ── Deduplication ─────────────────────────────────────────────────────────────
+rapidfuzz>=3.6.0
+
+# ── Date parsing ──────────────────────────────────────────────────────────────
+python-dateutil>=2.9.0
+pytz>=2024.1
+
+# ── TikTok / Apify collector ──────────────────────────────────────────────────
+apify-client>=1.7.0
+
+# ── Venue Discovery Engine (optional — set API keys in .env) ──────────────────
+# google-api-python-client>=2.120.0  # Google Custom Search (GOOGLE_CSE_API_KEY)
+# serpapi>=0.1.5                      # SerpAPI fallback     (SERPAPI_KEY)
+# DuckDuckGo fallback uses requests + bs4 (already above — no extra install)
