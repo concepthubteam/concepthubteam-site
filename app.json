@@ -14,7 +14,10 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.gozi.app"
+      "bundleIdentifier": "com.gozi.app",
+      "config": {
+        "googleMapsApiKey": "AIzaSyADWW6S5AHIDxyq2Ii9TJK2MsSyDHrYYVI"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -25,7 +28,12 @@
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
-      ]
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyADWW6S5AHIDxyq2Ii9TJK2MsSyDHrYYVI"
+        }
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
