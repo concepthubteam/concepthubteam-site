@@ -181,20 +181,23 @@ def _select_due_accounts(sb, limit: int, account_filter: Optional[str]) -> List[
       v2: is_active BOOLEAN, refresh_interval_minutes INTEGER
       v1: status TEXT ('active'/'paused'), refresh_interval_h INTEGER
     """
-    _COLS = "id, username, refresh_interval_minutes, refresh_interval_h, last_checked_at"
+    # v1 schema uses refresh_interval_h; v2 (legacy) used refresh_interval_minutes.
+    # We only select v1 columns here; _interval_minutes() handles both via row.get().
+    _COLS_V1 = "id, username, refresh_interval_h, last_checked_at"
+    _COLS_V2 = "id, username, refresh_interval_minutes, refresh_interval_h, last_checked_at"
     rows: List[dict] = []
 
-    # ── Try v2 schema: is_active BOOLEAN ─────────────────────────────────────
+    # ── Try v2 schema: is_active BOOLEAN + both interval columns ─────────────
     try:
-        q = sb.table("tiktok_accounts").select(_COLS).eq("is_active", True)
+        q = sb.table("tiktok_accounts").select(_COLS_V2).eq("is_active", True)
         if account_filter:
             q = q.eq("username", account_filter)
         rows = (q.limit(500).execute()).data or []
     except Exception as e_v2:
-        # ── Fallback to v1 schema: status TEXT ───────────────────────────────
-        log.debug("is_active query failed (%s), falling back to status='active'", e_v2)
+        # ── Fallback to v1 schema: status TEXT + refresh_interval_h only ──────
+        log.debug("v2 query failed (%s), falling back to v1 schema (status='active')", e_v2)
         try:
-            q = sb.table("tiktok_accounts").select(_COLS).eq("status", "active")
+            q = sb.table("tiktok_accounts").select(_COLS_V1).eq("status", "active")
             if account_filter:
                 q = q.eq("username", account_filter)
             rows = (q.limit(500).execute()).data or []
@@ -309,7 +312,6 @@ def _log_run_to_db(sb, result: AccountResult):
 
         row = {
             "account_id":       result.account_id,
-            "account_username": result.username,
             "status":           db_status,
             "videos_fetched":   result.videos_fetched,
             "videos_new":       result.videos_new,

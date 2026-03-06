@@ -109,7 +109,7 @@ class TikTokCollector:
                 timeout=self.timeout,
                 params={"timeout": 90, "memory": 512},
             )
-            if r.status_code != 200:
+            if r.status_code not in (200, 201):
                 log.error(f"Apify actor error {r.status_code}: {r.text[:300]}")
                 return None
             return r.json()

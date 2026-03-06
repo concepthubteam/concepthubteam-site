@@ -16,17 +16,18 @@ from scrapers.base import BaseScraper
 from pipeline.normalize import parse_price, parse_ro_date
 
 log      = logging.getLogger(__name__)
-BASE_URL = "https://www.zilesinopti.ro"
+# NOTE: site migrated from www.zilesinopti.ro/bucuresti/{slug}/ to
+# zilesinopti.ro/{slug}/ with kzn-* plugin class names (2026).
+BASE_URL = "https://zilesinopti.ro"
 
 # (url_slug → gozi_category)
 SECTIONS = [
-    ("evenimente",   "events"),
-    ("concerte",     "music"),
-    ("teatru",       "theatre"),
-    ("clubbing",     "club"),
-    ("restaurante",  "food"),
-    ("expozitii",    "expo"),
-    ("kids",         "kids"),
+    ("evenimente",  "events"),
+    ("concerte",    "music"),
+    ("teatru",      "theatre"),
+    ("clubbing",    "club"),
+    ("expozitii",   "expo"),
+    ("kids",        "kids"),
 ]
 
 HEADERS = {
@@ -41,12 +42,17 @@ class ZilesiNoptiScraper(BaseScraper):
     def __init__(self, max_pages_per_section: int = 3):
         self.max_pages = max_pages_per_section
 
-    def _parse_card(self, card, default_category: str) -> Optional[dict]:
-        # Title
+    def _parse_card(self, card, default_category: str,
+                    page_date: Optional[str] = None) -> Optional[dict]:
+        """
+        Parse a kzn-sw-item-text card (post-2026 plugin structure).
+        page_date: ISO date string for the listing page (YYYY-MM-DD).
+        """
+        # ── Title (h3.kzn-sw-item-titlu > a) ────────────────────────────────
         title_el = (
-            card.select_one("h2, h3, h4")
-            or card.select_one(".title, .event-title, [class*='title']")
-            or card.select_one("a")
+            card.select_one("[class*='kzn-sw-item-titlu'] a")
+            or card.select_one("h2 a, h3 a, h4 a")
+            or card.select_one("h2, h3, h4")
         )
         if not title_el:
             return None
@@ -54,41 +60,60 @@ class ZilesiNoptiScraper(BaseScraper):
         if not title or len(title) < 3:
             return None
 
-        # URL
+        # ── URL ──────────────────────────────────────────────────────────────
         link      = card.select_one("a[href]")
         event_url = ""
         if link:
-            href      = link["href"]
+            href      = link.get("href", "")
             event_url = href if href.startswith("http") else BASE_URL + href
 
-        # Date
-        date_el  = card.select_one("time, .date, .data, [class*='date'], [class*='when']")
+        # ── Date: kzn-sw-item-textjos contains "4/03/26" (D/MM/YY) ─────────
         date_str = ""
+        date_el  = card.select_one("[class*='kzn-sw-item-textjos']")
         if date_el:
-            date_str = date_el.get("datetime") or date_el.get_text(strip=True)
-        start_at = parse_ro_date(date_str)
-        # ZilesiNopti restaurants/always-open venues have no date → keep None
-        if not start_at and default_category not in ("food",):
+            date_str = date_el.get_text(strip=True)
+        # Fallback: infer from event URL slug (contains /YYYY/MM/DD/)
+        if not date_str and event_url:
+            m = re.search(r'/(\d{4}/\d{2}/\d{2})/', event_url)
+            if m:
+                date_str = m.group(1).replace("/", "-")
+        # Final fallback: use page_date
+        if not date_str and page_date:
+            date_str = page_date
+        start_at = parse_ro_date(date_str) if date_str else None
+        if not start_at:
             return None
 
-        # Venue
-        venue_el   = card.select_one(".venue, .location, .loc, [class*='venue'], [class*='location']")
+        # ── Venue ────────────────────────────────────────────────────────────
+        venue_el = (
+            card.select_one("[class*='kzn-sw-item-adresa-eveniment'] a")
+            or card.select_one("[class*='kzn-sw-item-adresa'] a")
+            or card.select_one("[class*='kzn-sw-item-adresa']")
+        )
         venue_name = venue_el.get_text(strip=True)[:120] if venue_el else "București"
 
-        # Price
+        # ── Category from kzn-sw-item-textsus ────────────────────────────────
+        cat_el = card.select_one("[class*='kzn-sw-item-textsus']")
+        category = default_category
+        if cat_el:
+            raw = cat_el.get_text(strip=True).lower()
+            if "concert" in raw or "muzic" in raw:
+                category = "music"
+            elif "teatru" in raw or "spectacol" in raw:
+                category = "theatre"
+            elif "club" in raw:
+                category = "club"
+            elif "expozi" in raw:
+                category = "expo"
+            elif "copii" in raw or "kids" in raw:
+                category = "kids"
+
+        # ── Price ─────────────────────────────────────────────────────────────
         price_el  = card.select_one(".price, .pret, [class*='price'], [class*='pret']")
         price_str = price_el.get_text(strip=True) if price_el else ""
         p_min, p_max, currency, is_free = parse_price(price_str)
 
-        # Rating
-        rating_el = card.select_one("[class*='rating'], [class*='star'], [class*='score']")
-        rating = 4.0
-        if rating_el:
-            nums = re.findall(r"[\d.]+", rating_el.get_text())
-            if nums:
-                rating = min(5.0, float(nums[0]))
-
-        # Image
+        # ── Image ─────────────────────────────────────────────────────────────
         img_el = card.select_one("img")
         images = []
         if img_el:
@@ -102,8 +127,8 @@ class ZilesiNoptiScraper(BaseScraper):
             "url":             event_url,
             "title":           title[:200],
             "description":     None,
-            "category":        default_category,
-            "start_at":        start_at or "2099-01-01T00:00:00+02:00",  # always-open sentinel
+            "category":        category,
+            "start_at":        start_at,
             "end_at":          None,
             "venue": {
                 "name":            venue_name,
@@ -116,36 +141,55 @@ class ZilesiNoptiScraper(BaseScraper):
             "is_free":    is_free,
             "ticket_url": event_url,
             "images":     images,
-            "tags":       [default_category, "zilesinopti", "bucurești"],
+            "tags":       [category, "zilesinopti", "bucurești"],
         }
 
     def _scrape_section(self, slug: str, category: str) -> List[dict]:
-        events = []
-        for page in range(1, self.max_pages + 1):
+        """
+        Scrape a section by fetching today + the next (max_pages-1) days.
+        ZilesiNopti uses ?zi=YYYY-MM-DD for per-day pagination.
+        """
+        from datetime import date, timedelta
+
+        events  = []
+        today   = date.today()
+
+        for day_offset in range(self.max_pages):
+            target_date = today + timedelta(days=day_offset)
+            date_str    = target_date.strftime("%Y-%m-%d")
+
             url = (
-                f"{BASE_URL}/bucuresti/{slug}/"
-                if page == 1
-                else f"{BASE_URL}/bucuresti/{slug}/?page={page}"
+                f"{BASE_URL}/{slug}/"
+                if day_offset == 0
+                else f"{BASE_URL}/{slug}/?zi={date_str}"
             )
             try:
                 r = requests.get(url, headers=HEADERS, timeout=20)
                 r.raise_for_status()
                 soup  = BeautifulSoup(r.text, "lxml")
-                cards = (
-                    soup.select("article.event, article.listing-item, li.event-item")
-                    or soup.select(".item-event, .card-event, .event-card")
-                )
+                # kzn plugin cards (post-2026)
+                cards = soup.select("div.kzn-sw-item-text")
+                if not cards:
+                    # Legacy fallback selectors
+                    cards = (
+                        soup.select("article.event, article.listing-item, li.event-item")
+                        or soup.select(".item-event, .card-event, .event-card")
+                    )
                 if not cards:
                     break
+
+                batch_count = 0
                 for card in cards:
                     try:
-                        parsed = self._parse_card(card, category)
+                        parsed = self._parse_card(card, category,
+                                                  page_date=date_str)
                         if parsed:
                             events.append(parsed)
+                            batch_count += 1
                     except Exception as e:
                         log.debug(f"card error: {e}")
 
-                log.debug(f"  ZSN /{slug}/ page {page}: {len(cards)} cards")
+                log.debug(f"  ZSN /{slug}/ zi={date_str}: {batch_count} events")
                 time.sleep(0.8)
 
             except Exception as e:

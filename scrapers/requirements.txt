@@ -22,6 +22,10 @@ rapidfuzz>=3.6.0
 python-dateutil>=2.9.0
 pytz>=2024.1
 
+# ── Headless browser (iesim.ro scraper — Next.js SSR) ────────────────────────
+playwright>=1.50.0
+# After install run: playwright install chromium
+
 # ── TikTok / Apify collector ──────────────────────────────────────────────────
 apify-client>=1.7.0
 

@@ -12,3 +12,19 @@ web-build/
 .env
 .env.local
 .DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Logs
+logs/
+cron_failed.log
+
+# Coverage
+coverage/
+
+# IDE
+.vscode/
+.idea/
