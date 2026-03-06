@@ -12,7 +12,10 @@ import EventCard from '../components/EventCard';
 import CategoryGrid from '../components/CategoryGrid';
 import { matchesFilter } from '../utils/filterUtils';
 import { SkeletonListCard, SkeletonFeaturedCard } from '../components/SkeletonCard';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEvents } from '../context/EventsContext';
+import { useCityPulse } from '../context/CityPulseContext';
+import { PREF_CATS_KEY } from './OnboardingScreen';
 
 const LOGO = require('../../assets/logo.png');
 
@@ -121,8 +124,33 @@ function getMagicSuggestions(events, userLocation) {
   return picks.slice(0, 3);
 }
 
+function getTonightEvents(events, userLocation) {
+  const todayISO = new Date().toISOString().split('T')[0];
+  const nowHour  = new Date().getHours();
+  return events
+    .filter(e => {
+      if (e.dateISO !== todayISO || !e.time) return false;
+      const h = parseInt(e.time.split(':')[0], 10);
+      return !isNaN(h) && h >= nowHour && h <= nowHour + 3;
+    })
+    .map(e => userLocation
+      ? { ...e, distance: formatDistance(getDistanceKm(userLocation.latitude, userLocation.longitude, e.lat, e.lng)) }
+      : e
+    )
+    .slice(0, 5);
+}
+
+function getNearbyEvents(events, userLocation) {
+  if (!userLocation) return [];
+  return events
+    .filter(e => getDistanceKm(userLocation.latitude, userLocation.longitude, e.lat, e.lng) < 2)
+    .map(e => ({ ...e, distance: formatDistance(getDistanceKm(userLocation.latitude, userLocation.longitude, e.lat, e.lng)) }))
+    .slice(0, 5);
+}
+
 export default function HomeScreen({ navigation }) {
   const { events } = useEvents();
+  const { heatData } = useCityPulse();
   const [filter, setFilter]             = useState('today');
   const [category, setCategory]         = useState(null);
   const [search, setSearch]             = useState('');
@@ -135,6 +163,7 @@ export default function HomeScreen({ navigation }) {
   const [loading, setLoading]           = useState(true);
   const [magicVisible, setMagicVisible] = useState(false);
   const [magicPicks, setMagicPicks]     = useState([]);
+  const [prefCats, setPrefCats]         = useState([]);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -156,6 +185,15 @@ export default function HomeScreen({ navigation }) {
   useEffect(() => {
     const t = setTimeout(() => setLoading(false), 650);
     return () => clearTimeout(t);
+  }, []);
+
+  // Încarcă categoriile preferate setate în onboarding
+  useEffect(() => {
+    AsyncStorage.getItem(PREF_CATS_KEY).then(raw => {
+      if (raw) {
+        try { setPrefCats(JSON.parse(raw)); } catch (_) {}
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -219,6 +257,16 @@ export default function HomeScreen({ navigation }) {
     ? { ...e, distance: formatDistance(getDistanceKm(userLocation.latitude, userLocation.longitude, e.lat, e.lng)) }
     : e
   );
+
+  const tonightEvents = !search && !category ? getTonightEvents(events, userLocation) : [];
+  const nearbyEvents  = !search && !category ? getNearbyEvents(events, userLocation) : [];
+
+  // Secțiunea „Pentru tine" — events din categoriile preferate la onboarding
+  const forYouEvents = prefCats.length > 0 && !search && !category
+    ? events
+        .filter(e => prefCats.includes(e.category) && matchesFilter(e, filter))
+        .slice(0, 6)
+    : [];
 
   const toggleSort = () => {
     if (!userLocation && !locLoading) {
@@ -301,6 +349,72 @@ export default function HomeScreen({ navigation }) {
           </View>
         )}
 
+        {/* City Pulse Banner */}
+        {heatData.length > 0 && !searchActive && (
+          <TouchableOpacity
+            style={styles.pulseBanner}
+            onPress={() => navigation.navigate('CityPulse')}
+            activeOpacity={0.88}
+          >
+            <Text style={styles.pulseBannerIcon}>🔥</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.pulseBannerTitle}>City Pulse</Text>
+              <Text style={styles.pulseBannerSub}>
+                {heatData.filter(v => v.heat_level === 'packed' || v.heat_level === 'busy').length} locuri active acum în București
+              </Text>
+            </View>
+            <Text style={styles.pulseBannerArrow}>›</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Diseară în București */}
+        {tonightEvents.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHead}>
+              <Text style={styles.sectionLabel}>🌙 DISEARĂ ÎN BUCUREȘTI</Text>
+              <Text style={styles.openNowCount}>încep în &lt;3h</Text>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.featuredScroll}
+            >
+              {tonightEvents.map(e => (
+                <EventCard
+                  key={e.id}
+                  event={e}
+                  featured
+                  onPress={() => navigation.navigate('EventDetail', { event: e })}
+                />
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Lângă tine */}
+        {nearbyEvents.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHead}>
+              <Text style={styles.sectionLabel}>📍 LÂNGĂ TINE — &lt;2KM</Text>
+              <Text style={styles.openNowCount}>{nearbyEvents.length} locuri</Text>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.featuredScroll}
+            >
+              {nearbyEvents.map(e => (
+                <EventCard
+                  key={e.id}
+                  event={e}
+                  featured
+                  onPress={() => navigation.navigate('EventDetail', { event: e })}
+                />
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
         {/* Filter tabs with counts */}
         <View style={styles.section}>
           <ScrollView
@@ -359,6 +473,30 @@ export default function HomeScreen({ navigation }) {
           </View>
           <CategoryGrid selected={category} onSelect={setCategory} filter={filter} />
         </View>
+
+        {/* Pentru tine — personalizat din onboarding */}
+        {forYouEvents.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHead}>
+              <Text style={styles.sectionLabel}>⚡ PENTRU TINE</Text>
+              <Text style={styles.clearCat}>{prefCats.length} categ.</Text>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.featuredScroll}
+            >
+              {forYouEvents.map(e => (
+                <EventCard
+                  key={e.id}
+                  event={e}
+                  featured
+                  onPress={() => navigation.navigate('EventDetail', { event: e })}
+                />
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
         {/* Featured */}
         {!category && !search && (loading || featured.length > 0) && (
@@ -713,6 +851,19 @@ const styles = StyleSheet.create({
     borderColor: COLORS.accentMid,
   },
   emptyBtnText: { fontSize: 13, fontWeight: '600', color: COLORS.accent },
+
+  // City Pulse Banner
+  pulseBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    marginHorizontal: 16, marginTop: 12,
+    backgroundColor: 'rgba(239,68,68,0.1)',
+    borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)',
+  },
+  pulseBannerIcon:  { fontSize: 24 },
+  pulseBannerTitle: { fontSize: 13, fontWeight: '800', color: '#F7F4F0' },
+  pulseBannerSub:   { fontSize: 11, color: '#EF4444', marginTop: 2, fontWeight: '600' },
+  pulseBannerArrow: { fontSize: 22, color: 'rgba(239,68,68,0.7)', fontWeight: '300' },
 
   // Magic Button
   magicBtnWrap: {

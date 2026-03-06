@@ -11,6 +11,7 @@ import { CATEGORIES } from '../data/mockData';
 import { HISTORY_KEY } from './EventDetailScreen';
 import { useEvents } from '../context/EventsContext';
 import { useAuth } from '../context/AuthContext';
+import { useCityPulse } from '../context/CityPulseContext';
 import AuthScreen from './AuthScreen';
 
 const LOGO = require('../../assets/logo.png');
@@ -38,6 +39,7 @@ export default function ProfileScreen({ navigation }) {
   const { events } = useEvents();
   const { savedIds, clearSaved } = useSaved();
   const { user, signOut } = useAuth();
+  const { optedIn, setOptIn } = useCityPulse();
   const [authVisible, setAuthVisible] = useState(false);
   const savedEvents = events.filter(e => savedIds.has(e.id));
 
@@ -416,6 +418,43 @@ export default function ProfileScreen({ navigation }) {
             </View>
           </View>
         )}
+
+        {/* City Pulse */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>🔥 CITY PULSE</Text>
+          <View style={styles.settingsCard}>
+            <View style={styles.settingRow}>
+              <View style={styles.settingLeft}>
+                <Text style={styles.settingIcon}>📡</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.settingTitle}>Radar anonim activ</Text>
+                  <Text style={styles.settingDesc}>Semnal GPS anonim · fără date personale</Text>
+                </View>
+              </View>
+              <Switch
+                value={optedIn}
+                onValueChange={v => setOptIn(v)}
+                trackColor={{ false: COLORS.border, true: COLORS.accentMid }}
+                thumbColor={optedIn ? COLORS.accent : COLORS.textMuted}
+              />
+            </View>
+            <View style={styles.settingDivider} />
+            <TouchableOpacity
+              style={styles.settingRow}
+              onPress={() => navigation.navigate('CityPulse')}
+              activeOpacity={0.7}
+            >
+              <View style={styles.settingLeft}>
+                <Text style={styles.settingIcon}>🏙️</Text>
+                <View>
+                  <Text style={styles.settingTitle}>Deschide City Pulse</Text>
+                  <Text style={styles.settingDesc}>Locuri active acum în București</Text>
+                </View>
+              </View>
+              <Text style={styles.settingValue}>→</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
 
         {/* Notificări */}
         <View style={styles.section}>

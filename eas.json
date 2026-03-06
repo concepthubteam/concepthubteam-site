@@ -9,12 +9,19 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "ios": {
+        "simulator": true
       }
     },
     "preview": {
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "ios": {
+        "distribution": "internal",
+        "simulator": false
       },
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://xlelmyucmxjohrqzauzo.supabase.co",
@@ -25,6 +32,9 @@
       "distribution": "store",
       "android": {
         "buildType": "app-bundle"
+      },
+      "ios": {
+        "distribution": "store"
       },
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://xlelmyucmxjohrqzauzo.supabase.co",
@@ -37,6 +47,11 @@
       "android": {
         "serviceAccountKeyPath": "./google-service-account.json",
         "track": "internal"
+      },
+      "ios": {
+        "appleId": "APPLE_ID_TBD",
+        "ascAppId": "APP_STORE_CONNECT_ID_TBD",
+        "appleTeamId": "TEAM_ID_TBD"
       }
     }
   }

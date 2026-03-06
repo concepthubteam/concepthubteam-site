@@ -1,8 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+
+// Export ref global — folosit în App.js pentru navigation din notificări
+export const navigationRef = createNavigationContainerRef();
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/colors';
 import { useSaved } from '../context/SavedContext';
@@ -34,6 +37,7 @@ import ProfileScreen      from '../screens/ProfileScreen';
 import EventDetailScreen  from '../screens/EventDetailScreen';
 import SubmitEventScreen  from '../screens/SubmitEventScreen';
 import TikTokInboxScreen  from '../screens/TikTokInboxScreen';
+import CityPulseScreen    from '../screens/CityPulseScreen';
 
 const Tab   = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -131,6 +135,7 @@ function MainTabs() {
 export default function AppNavigator() {
   return (
     <NavigationContainer
+      ref={navigationRef}
       linking={linking}
       theme={{
         dark: true,
@@ -160,6 +165,11 @@ export default function AppNavigator() {
           name="TikTokInbox"
           component={TikTokInboxScreen}
           options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="CityPulse"
+          component={CityPulseScreen}
+          options={{ animation: 'slide_from_bottom' }}
         />
       </Stack.Navigator>
     </NavigationContainer>

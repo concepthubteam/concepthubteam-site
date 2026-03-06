@@ -6,11 +6,13 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS } from '../constants/colors';
+import { CATEGORIES } from '../data/mockData';
 
 const LOGO = require('../../assets/logo.png');
 
 const { width, height } = Dimensions.get('window');
 const ONBOARDING_KEY = '@gozi:onboarded';
+export const PREF_CATS_KEY = '@gozi:prefCats';
 const HERO_HEIGHT = height * 0.38;
 
 const SLIDES = [
@@ -35,7 +37,7 @@ const SLIDES = [
     features: [
       { icon: '🗺️', text: 'Hartă interactivă dark mode' },
       { icon: '📅', text: 'Filtrează: azi, mâine, weekend' },
-      { icon: '↑', text: 'Sortare după distanță față de tine' },
+      { icon: '↑',  text: 'Sortare după distanță față de tine' },
     ],
     accent: '#3B82F6',
     emoji: '🗺️',
@@ -66,13 +68,32 @@ const SLIDES = [
     accent: '#10B981',
     emoji: '🔍',
   },
+  {
+    id: '5',
+    type: 'categories',
+    image: 'https://images.unsplash.com/photo-1534430480872-3498386e7856?w=600&h=500&fit=crop',
+    title: 'Ce te interesează?',
+    subtitle: 'Personalizăm feed-ul pentru tine',
+    accent: COLORS.accent,
+    emoji: '⚡',
+  },
 ];
 
 export default function OnboardingScreen({ onDone }) {
   const [index, setIndex] = useState(0);
+  const [prefCats, setPrefCats] = useState(new Set());
   const scrollRef = useRef(null);
   const slide = SLIDES[index];
   const isLast = index === SLIDES.length - 1;
+
+  const toggleCat = (catId) => {
+    setPrefCats(prev => {
+      const next = new Set(prev);
+      if (next.has(catId)) next.delete(catId);
+      else next.add(catId);
+      return next;
+    });
+  };
 
   const goTo = (i) => {
     scrollRef.current?.scrollTo({ x: i * width, animated: true });
@@ -81,6 +102,9 @@ export default function OnboardingScreen({ onDone }) {
 
   const next = async () => {
     if (isLast) {
+      // Salvăm preferințele — dacă nu e nicio categorie aleasă → salvăm gol (toate)
+      const toSave = prefCats.size > 0 ? [...prefCats] : [];
+      await AsyncStorage.setItem(PREF_CATS_KEY, JSON.stringify(toSave));
       await AsyncStorage.setItem(ONBOARDING_KEY, '1');
       onDone();
     } else {
@@ -89,6 +113,7 @@ export default function OnboardingScreen({ onDone }) {
   };
 
   const skip = async () => {
+    await AsyncStorage.setItem(PREF_CATS_KEY, JSON.stringify([]));
     await AsyncStorage.setItem(ONBOARDING_KEY, '1');
     onDone();
   };
@@ -157,16 +182,58 @@ export default function OnboardingScreen({ onDone }) {
             <View style={styles.content}>
               <Text style={styles.title}>{s.title}</Text>
               <Text style={styles.subtitle}>{s.subtitle}</Text>
-              <View style={styles.featureList}>
-                {s.features.map((f, i) => (
-                  <View key={i} style={styles.featureRow}>
-                    <View style={[styles.featureIconWrap, { backgroundColor: `${s.accent}18`, borderColor: `${s.accent}33` }]}>
-                      <Text style={styles.featureIcon}>{f.icon}</Text>
-                    </View>
-                    <Text style={styles.featureText}>{f.text}</Text>
+
+              {s.type === 'categories' ? (
+                /* Grilă selecție categorii */
+                <View>
+                  <View style={styles.catGrid}>
+                    {CATEGORIES.map(cat => {
+                      const selected = prefCats.has(cat.id);
+                      return (
+                        <TouchableOpacity
+                          key={cat.id}
+                          style={[
+                            styles.catChip,
+                            selected && { borderColor: cat.color, backgroundColor: `${cat.color}20` },
+                          ]}
+                          onPress={() => toggleCat(cat.id)}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.catChipIcon}>{cat.icon}</Text>
+                          <Text style={[styles.catChipLabel, selected && { color: cat.color }]}>
+                            {cat.label}
+                          </Text>
+                          {selected && (
+                            <View style={[styles.catCheckDot, { backgroundColor: cat.color }]}>
+                              <Text style={styles.catCheckMark}>✓</Text>
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
                   </View>
-                ))}
-              </View>
+                  {prefCats.size === 0 && (
+                    <Text style={styles.catHint}>Selectează minim una · sau continuă pentru toate</Text>
+                  )}
+                  {prefCats.size > 0 && (
+                    <Text style={[styles.catHint, { color: COLORS.accent }]}>
+                      {prefCats.size} {prefCats.size === 1 ? 'categorie aleasă' : 'categorii alese'} ✓
+                    </Text>
+                  )}
+                </View>
+              ) : (
+                /* Lista de feature-uri standard */
+                <View style={styles.featureList}>
+                  {s.features.map((f, i) => (
+                    <View key={i} style={styles.featureRow}>
+                      <View style={[styles.featureIconWrap, { backgroundColor: `${s.accent}18`, borderColor: `${s.accent}33` }]}>
+                        <Text style={styles.featureIcon}>{f.icon}</Text>
+                      </View>
+                      <Text style={styles.featureText}>{f.text}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
           </View>
         ))}
@@ -198,7 +265,7 @@ export default function OnboardingScreen({ onDone }) {
           activeOpacity={0.85}
         >
           <Text style={styles.nextBtnText}>
-            {isLast ? '🚀  Hai să explorăm!' : 'Continuă  →'}
+            {isLast ? '⚡  Hai să explorăm!' : 'Continuă  →'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -245,11 +312,7 @@ const styles = StyleSheet.create({
   skipText: { fontSize: 12, color: COLORS.textSecondary, fontWeight: '600' },
 
   pager: { flex: 1 },
-
-  slide: {
-    width,
-    flex: 1,
-  },
+  slide: { width, flex: 1 },
 
   heroArea: {
     height: HERO_HEIGHT,
@@ -260,84 +323,93 @@ const styles = StyleSheet.create({
   },
   heroCenter: { alignItems: 'center', justifyContent: 'center' },
   heroLogoWrap: {
-    width: 160,
-    height: 64,
+    width: 160, height: 64,
     backgroundColor: 'rgba(20,18,16,0.6)',
     borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
     paddingHorizontal: 16,
   },
   heroLogo: { width: '100%', height: '100%' },
   heroEmojiWrap: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 90, height: 90, borderRadius: 45,
+    alignItems: 'center', justifyContent: 'center',
     borderWidth: 1,
   },
   heroEmoji: { fontSize: 42 },
 
   content: {
     flex: 1,
-    paddingHorizontal: 28,
-    paddingTop: 24,
+    paddingHorizontal: 24,
+    paddingTop: 20,
     justifyContent: 'flex-start',
   },
   title: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: COLORS.textPrimary,
-    lineHeight: 34,
-    letterSpacing: -0.5,
-    marginBottom: 6,
+    fontSize: 28, fontWeight: '900',
+    color: COLORS.textPrimary, lineHeight: 34,
+    letterSpacing: -0.5, marginBottom: 6,
   },
   subtitle: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    lineHeight: 20,
-    marginBottom: 22,
+    fontSize: 13, color: COLORS.textSecondary,
+    lineHeight: 20, marginBottom: 18,
   },
   featureList: { gap: 12 },
   featureRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   featureIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
+    width: 38, height: 38, borderRadius: 10,
+    alignItems: 'center', justifyContent: 'center', borderWidth: 1,
   },
   featureIcon: { fontSize: 18 },
   featureText: { flex: 1, fontSize: 13, color: COLORS.textPrimary, fontWeight: '500', lineHeight: 18 },
 
-  dots: {
+  // Category selection grid
+  catGrid: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 16,
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 12,
+  },
+  catChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.surface,
+    position: 'relative',
+    minWidth: '44%',
+    flex: 1,
+  },
+  catChipIcon: { fontSize: 18 },
+  catChipLabel: { fontSize: 12, fontWeight: '600', color: COLORS.textPrimary, flex: 1 },
+  catCheckDot: {
+    width: 18, height: 18, borderRadius: 9,
+    alignItems: 'center', justifyContent: 'center',
+    marginLeft: 'auto',
+  },
+  catCheckMark: { fontSize: 10, color: '#fff', fontWeight: '800' },
+  catHint: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+
+  dots: {
+    flexDirection: 'row', justifyContent: 'center',
+    gap: 8, paddingVertical: 14,
   },
   dot: { borderRadius: 4 },
-  dotActive: { width: 24, height: 8 },
-  dotInactive: { width: 8, height: 8, backgroundColor: COLORS.border },
+  dotActive:   { width: 24, height: 8 },
+  dotInactive: { width: 8,  height: 8, backgroundColor: COLORS.border },
 
-  footer: {
-    paddingHorizontal: 24,
-    paddingBottom: 36,
-  },
+  footer: { paddingHorizontal: 24, paddingBottom: 36 },
   nextBtn: {
-    height: 56,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+    height: 56, borderRadius: 16,
+    alignItems: 'center', justifyContent: 'center',
   },
-  nextBtnText: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#fff',
-    letterSpacing: 0.3,
-  },
+  nextBtnText: { fontSize: 16, fontWeight: '800', color: '#fff', letterSpacing: 0.3 },
 });

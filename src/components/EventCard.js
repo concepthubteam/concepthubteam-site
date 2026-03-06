@@ -87,7 +87,12 @@ export default function EventCard({ event, onPress, featured = false }) {
           </View>
           <View style={styles.featuredBottom}>
             <Text style={styles.ratingText}>★ {event.rating}</Text>
-            <Text style={styles.distanceText}>{event.distance}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              {event.savedCount > 0 && (
+                <Text style={styles.savedCountText}>👥 {event.savedCount}</Text>
+              )}
+              <Text style={styles.distanceText}>{event.distance}</Text>
+            </View>
           </View>
         </View>
       </TouchableOpacity>
@@ -117,6 +122,9 @@ export default function EventCard({ event, onPress, featured = false }) {
         <Text style={styles.listTitle} numberOfLines={1}>{event.title}</Text>
         <Text style={styles.listMeta}>📅 {event.date}  ⏰ {event.time}</Text>
         <Text style={styles.listVenue} numberOfLines={1}>📍 {event.venue}</Text>
+        {event.savedCount > 0 && (
+          <Text style={styles.listSavedCount}>👥 {event.savedCount} interesați</Text>
+        )}
       </View>
       <View style={styles.listRight}>
         <TouchableOpacity
@@ -133,7 +141,7 @@ export default function EventCard({ event, onPress, featured = false }) {
         </View>
         {isToday
           ? <View style={styles.listTodayBadge}><Text style={styles.listTodayText}>AZI</Text></View>
-          : <Text style={styles.listPrice}>{event.price === 'Gratuit' ? '✓ Free' : event.price.split(' ')[0]}</Text>
+          : <Text style={styles.listPrice}>{event.price === 'Gratuit' ? '✓ Free' : (event.price || '').split(' ')[0]}</Text>
         }
         <Text style={styles.listDistance}>{event.distance}</Text>
       </View>
@@ -288,4 +296,6 @@ const styles = StyleSheet.create({
   listRatingText: { fontSize: 9, fontWeight: '800', color: COLORS.accent },
   listPrice: { fontSize: 11, color: COLORS.accent, fontWeight: '600' },
   listDistance: { fontSize: 10, color: COLORS.textMuted },
+  savedCountText: { fontSize: 10, color: COLORS.textMuted, fontWeight: '600' },
+  listSavedCount: { fontSize: 10, color: COLORS.textMuted, fontWeight: '600', marginTop: 1 },
 });
