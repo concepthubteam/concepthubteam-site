@@ -14,6 +14,7 @@ import {
   cancelEventReminder,
   getScheduledEventIds,
 } from '../utils/notifications';
+import { supabase, isConfigured } from '../lib/supabase';
 
 export const HISTORY_KEY = '@gozi:history';
 
@@ -260,13 +261,15 @@ export default function EventDetailScreen({ route, navigation }) {
           <Text style={styles.desc}>{event.description}</Text>
 
           {/* Tags */}
-          <View style={styles.tags}>
-            {event.tags.map(tag => (
-              <View key={tag} style={styles.tag}>
-                <Text style={styles.tagText}>#{tag}</Text>
-              </View>
-            ))}
-          </View>
+          {(event.tags || []).length > 0 && (
+            <View style={styles.tags}>
+              {(event.tags || []).map(tag => (
+                <View key={tag} style={styles.tag}>
+                  <Text style={styles.tagText}>#{tag}</Text>
+                </View>
+              ))}
+            </View>
+          )}
 
           <View style={styles.divider} />
 
@@ -321,7 +324,16 @@ export default function EventDetailScreen({ route, navigation }) {
                 {event.ticketsUrl && (
                   <TouchableOpacity
                     style={[styles.linkBtn, styles.linkBtnTickets]}
-                    onPress={() => openLink(event.ticketsUrl)}
+                    onPress={() => {
+                      if (isConfigured) {
+                        supabase
+                          .from('events')
+                          .update({ ticket_clicks: (event.ticketClicks || 0) + 1 })
+                          .eq('id', event.id)
+                          .then(() => {}).catch(() => {});
+                      }
+                      openLink(event.ticketsUrl);
+                    }}
                     activeOpacity={0.8}
                   >
                     <Text style={styles.linkIcon}>🎟️</Text>
@@ -377,6 +389,14 @@ export default function EventDetailScreen({ route, navigation }) {
           activeOpacity={0.85}
           onPress={() => {
             if (event.ticketsUrl) {
+              // Track ticket click — fire & forget, nu blochează UI
+              if (isConfigured) {
+                supabase
+                  .from('events')
+                  .update({ ticket_clicks: (event.ticketClicks || 0) + 1 })
+                  .eq('id', event.id)
+                  .then(() => {}).catch(() => {});
+              }
               openLink(event.ticketsUrl);
             } else {
               openMaps();

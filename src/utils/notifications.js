@@ -71,6 +71,8 @@ export async function scheduleEventReminder(event) {
         : `Începe în 1 oră la ${event.venue}${event.time ? ' (' + event.time + ')' : ''}`,
       data: { eventId: event.id },
       sound: true,
+      // Android: canal de notificări cu prioritate HIGH
+      channelId: 'gozi_reminders',
     },
     trigger,
   });
